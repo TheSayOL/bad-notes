@@ -1,8 +1,8 @@
 {
     "name": "bad-notes",
     "displayName": "bad-notes",
-    "publisher": "bad-notes",
     "description": "",
+    "publisher": "tsol",
     "version": "0.0.1",
     "engines": {
         "vscode": "^1.85.0"
