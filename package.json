@@ -1,6 +1,7 @@
 {
-    "name": "helloworld-test-ts",
-    "displayName": "helloworld-test-ts",
+    "name": "bad-notes",
+    "displayName": "bad-notes",
+    "publisher": "bad-notes",
     "description": "",
     "version": "0.0.1",
     "engines": {
