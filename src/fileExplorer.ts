@@ -336,13 +336,13 @@ export class FileExplorer {
 	private copyHelper: CopyHelper;
 
 	constructor(context: vscode.ExtensionContext) {
-
 		this.context = context;
 		this.selected = this.getEntry();
 		this.copyHelper = new CopyHelper();
 
 		let treeDataProvider = new FileSystemProvider(context);
 		this.treeDataProvider = treeDataProvider;
+
 		// 当树支持多选并且从树执行命令时， 命令的第一个参数是执行该命令的树项，第二个参数是 包含所有选定的树项目的数组。
 		let treeView = vscode.window.createTreeView('fileExplorer', { treeDataProvider, canSelectMany: true });
 		context.subscriptions.push(treeView);
@@ -351,6 +351,35 @@ export class FileExplorer {
 			this.onDidChangeSelection(e);
 		})
 
+		// 监听设置改变事件, 如果改变的是 notes 路径, 更新信息
+		let settingID = 'badNote.allEntry'
+		vscode.workspace.onDidChangeConfiguration(event => {
+			if (event.affectsConfiguration(settingID)) {
+				let ps = vscode.workspace.getConfiguration().get<string[]>(settingID) || [];
+				for (let p of ps) {
+					// 发现有效文件夹, 返回
+					if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
+						context.globalState.update('entry', p);
+						this.treeDataProvider.refresh();
+						return;
+					}
+				}
+				vscode.window.showErrorMessage('无可用路径, 请设置', '设置').then(async () => {
+					await vscode.commands.executeCommand('workbench.action.openSettings', settingID);
+				})
+			}
+		})
+
+		// 初次启动时, 检查设置, 是否有 notes 路径
+		let paths = vscode.workspace.getConfiguration().get<string[]>(settingID);
+		if (!paths || paths.length == 0) {
+			// 若没有, 提示用户设置
+			vscode.window.showInformationMessage('请设置 notes 路径', '前往设置').then(() => {
+				vscode.commands.executeCommand('workbench.action.openSettings', settingID);
+			});
+		}
+
+		// 注册命令
 		vscode.commands.registerCommand('fileExplorer.openFile', (resource) => this.openResource(resource));
 		vscode.commands.registerCommand('fileExplorer.addEntry', async () => await this.addEntry());
 		vscode.commands.registerCommand('fileExplorer.refresh', () => treeDataProvider.refresh());

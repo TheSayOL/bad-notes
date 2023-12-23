@@ -7,12 +7,26 @@
     "engines": {
         "vscode": "^1.85.0"
     },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/thesayol/bad-notes.git"
+    },
     "categories": [
         "Other"
     ],
     "activationEvents": [],
     "main": "./out/extension.js",
     "contributes": {
+        "configuration": {
+            "title": "BadNote",
+            "properties": {
+                "badNote.allEntry": {
+                    "type": "array",
+                    "default": [],
+                    "description": "entry array of path to notes. first will be used"
+                }
+            }
+        },
         "commands": [
             {
                 "command": "fileExplorer.refresh",
@@ -119,7 +133,6 @@
         },
         "views": {
             "note-explorer": [
-         
                 {
                     "id": "fileExplorer",
                     "name": "File-Explorer"
