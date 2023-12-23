@@ -1,0 +1,157 @@
+{
+    "name": "helloworld-test-ts",
+    "displayName": "helloworld-test-ts",
+    "description": "",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "fileExplorer.refresh",
+                "title": "Refresh",
+                "icon": {
+                    "dark": "resources/dark/refresh.svg",
+                    "light": "resources/dark/refresh.svg"
+                }
+            },
+            {
+                "command": "fileExplorer.newFile",
+                "title": "New File",
+                "icon": {
+                    "light": "resources/light/add.svg",
+                    "dark": "resources/dark/add.svg"
+                }
+            },
+            {
+                "command": "fileExplorer.newDir",
+                "title": "New Dir",
+                "icon": {
+                    "light": "resources/light/newdir.svg",
+                    "dark": "resources/dark/newdir.svg"
+                }
+            },
+            {
+                "title": "set entry",
+                "command": "fileExplorer.addEntry"
+            },
+            {
+                "title": "重命名",
+                "command": "fileExplorer.renameFile"
+            },
+            {
+                "title": "删除",
+                "command": "fileExplorer.deleteFile"
+            },
+            {
+                "title": "复制",
+                "command": "fileExplorer.copyFile"
+            },
+            {
+                "title": "剪切",
+                "command": "fileExplorer.moveFile"
+            },
+            {
+                "title": "粘贴",
+                "command": "fileExplorer.pasteFile"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "fileExplorer.refresh",
+                    "when": "view == fileExplorer",
+                    "group": "navigation"
+                },
+                {
+                    "command": "fileExplorer.newFile",
+                    "when": "view == fileExplorer",
+                    "group": "navigation"
+                },
+                {
+                    "command": "fileExplorer.newDir",
+                    "when": "view == fileExplorer",
+                    "group": "navigation"
+                },
+                {
+                    "command": "fileExplorer.addEntry",
+                    "when": "view == fileExplorer"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "fileExplorer.renameFile",
+                    "when": "view == fileExplorer"
+                },
+                {
+                    "command": "fileExplorer.deleteFile",
+                    "when": "view == fileExplorer"
+                },
+                {
+                    "command": "fileExplorer.copyFile",
+                    "when": "view == fileExplorer"
+                },
+                {
+                    "command": "fileExplorer.moveFile",
+                    "when": "view == fileExplorer"
+                },
+                {
+                    "command": "fileExplorer.pasteFile",
+                    "when": "view == fileExplorer"
+                }
+            ]
+        },
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "note-explorer",
+                    "title": "Note Explorer",
+                    "icon": "resources/note-explorer.svg"
+                }
+            ]
+        },
+        "views": {
+            "note-explorer": [
+         
+                {
+                    "id": "fileExplorer",
+                    "name": "File-Explorer"
+                }
+            ]
+        },
+        "viewsWelcome": [
+            {
+                "view": "fileExplorer",
+                "contents": "[设置文件夹](command:fileExplorer.addEntry)"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "vscode-test"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "@types/mocha": "^10.0.6",
+        "@types/node": "18.x",
+        "@typescript-eslint/eslint-plugin": "^6.15.0",
+        "@typescript-eslint/parser": "^6.15.0",
+        "eslint": "^8.56.0",
+        "typescript": "^5.3.3",
+        "@vscode/test-cli": "^0.0.4",
+        "@vscode/test-electron": "^2.3.8"
+    },
+    "dependencies": {
+        "mkdirp": "3.0.1"
+    }
+}
