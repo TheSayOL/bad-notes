@@ -29,3 +29,15 @@ Initial release
 [vscode-notes](https://github.com/dionmunk/vscode-notes)
 
 [Microsoft](https://github.com/microsoft/vscode-extension-samples)
+
+
+
+## build
+
+version : `major, minor, patch`
+
+```sh
+vsce package 
+vsce publish
+```
+

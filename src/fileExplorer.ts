@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-// import * as mkdirp from 'mkdirp';
-// import rimraf from 'rimraf';
+
+import * as config from './badNoteConfig'
 
 //#region Utilities
 
@@ -156,13 +156,8 @@ interface Entry {
 export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscode.FileSystemProvider {
 
 	private _onDidChangeFile: vscode.EventEmitter<vscode.FileChangeEvent[]>;
-	private root: string;
-	private context: vscode.ExtensionContext;
 
-	constructor(context: vscode.ExtensionContext) {
-		let root: string = context.globalState.get("entry") || '';
-		this.context = context;
-		this.root = root;
+	constructor() {
 		this._onDidChangeFile = new vscode.EventEmitter<vscode.FileChangeEvent[]>();
 	}
 
@@ -289,9 +284,8 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 		}
 
 		// no element: init
-
-		let root = this.root;
-		let root_uri = vscode.Uri.file(this.root);
+		let root = config.getEntry();
+		let root_uri = vscode.Uri.file(root);
 		if (root) {
 			const children = await this.readDirectory(root_uri);
 			if (children.length == 0) {
@@ -303,7 +297,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 				}
 				return a[1] === vscode.FileType.Directory ? -1 : 1;
 			});
-			let ret = children.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(this.root, name)), type }));
+			let ret = children.map(([name, type]) => ({ uri: vscode.Uri.file(path.join(root, name)), type }));
 			return ret;
 		}
 
@@ -311,7 +305,6 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 	}
 
 	getTreeItem(element: Entry): vscode.TreeItem {
-		console.log('get');
 		const treeItem = new vscode.TreeItem(element.uri, element.type === vscode.FileType.Directory ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
 		if (element.type === vscode.FileType.File) {
 			treeItem.command = { command: 'fileExplorer.openFile', title: "Open File", arguments: [element.uri], };
@@ -323,7 +316,7 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 	private _onDidChangeTreeData: vscode.EventEmitter<Entry | undefined | null | void> = new vscode.EventEmitter<Entry | undefined | null | void>();
 	readonly onDidChangeTreeData: vscode.Event<Entry | undefined | null | void> = this._onDidChangeTreeData.event;
 	public refresh(): void {
-		this.root = this.context.globalState.get('entry') || '';
+		config.getEntryFromConfig();
 		this._onDidChangeTreeData.fire();
 	}
 }
@@ -336,48 +329,25 @@ export class FileExplorer {
 	private copyHelper: CopyHelper;
 
 	constructor(context: vscode.ExtensionContext) {
+		// 初始化
+		let entry = config.getEntryFromConfig();
 		this.context = context;
-		this.selected = this.getEntry();
+		this.selected = entry;
 		this.copyHelper = new CopyHelper();
 
-		let treeDataProvider = new FileSystemProvider(context);
-		this.treeDataProvider = treeDataProvider;
-
+		// 初始化 tree view
 		// 当树支持多选并且从树执行命令时， 命令的第一个参数是执行该命令的树项，第二个参数是 包含所有选定的树项目的数组。
+		let treeDataProvider = new FileSystemProvider();
+		this.treeDataProvider = treeDataProvider;
 		let treeView = vscode.window.createTreeView('fileExplorer', { treeDataProvider, canSelectMany: true });
 		context.subscriptions.push(treeView);
 
+		// 注册 Change Selection 事件
 		treeView.onDidChangeSelection(e => {
 			this.onDidChangeSelection(e);
 		})
 
-		// 监听设置改变事件, 如果改变的是 notes 路径, 更新信息
-		let settingID = 'badNote.allEntry'
-		vscode.workspace.onDidChangeConfiguration(event => {
-			if (event.affectsConfiguration(settingID)) {
-				let ps = vscode.workspace.getConfiguration().get<string[]>(settingID) || [];
-				for (let p of ps) {
-					// 发现有效文件夹, 返回
-					if (fs.existsSync(p) && fs.statSync(p).isDirectory()) {
-						context.globalState.update('entry', p);
-						this.treeDataProvider.refresh();
-						return;
-					}
-				}
-				vscode.window.showErrorMessage('无可用路径, 请设置', '设置').then(async () => {
-					await vscode.commands.executeCommand('workbench.action.openSettings', settingID);
-				})
-			}
-		})
-
-		// 初次启动时, 检查设置, 是否有 notes 路径
-		let paths = vscode.workspace.getConfiguration().get<string[]>(settingID);
-		if (!paths || paths.length == 0) {
-			// 若没有, 提示用户设置
-			vscode.window.showInformationMessage('请设置 notes 路径', '前往设置').then(() => {
-				vscode.commands.executeCommand('workbench.action.openSettings', settingID);
-			});
-		}
+		config.setListenerOnDidChangeConfiguration();
 
 		// 注册命令
 		vscode.commands.registerCommand('fileExplorer.openFile', (resource) => this.openResource(resource));
@@ -390,10 +360,20 @@ export class FileExplorer {
 		vscode.commands.registerCommand('fileExplorer.moveFile', async (item, selections) => this.setCopyHelper(selections, CopyMode.Move));
 		vscode.commands.registerCommand('fileExplorer.copyFile', async (item, selections) => this.setCopyHelper(selections, CopyMode.Copy));
 		vscode.commands.registerCommand('fileExplorer.pasteFile', async (item, selections) => this.pasteFile());
+
+		vscode.commands.registerCommand('fileExplorer.addNotesToWorkspace', async () => this.addNotesToWorkspace());
+		
+
 	}
 
 	private openResource(resource: vscode.Uri): void {
 		vscode.window.showTextDocument(resource);
+	}
+
+
+	private addNotesToWorkspace(){
+		let entry = config.getEntryFromConfig();
+		vscode.commands.executeCommand('workbench.action.addRootFolder');
 	}
 
 	private setCopyHelper(selections: Entry[], mode: CopyMode) {
@@ -417,12 +397,12 @@ export class FileExplorer {
 				)
 			}
 		}
-		this.treeDataProvider.refresh();
+		vscode.commands.executeCommand('fileExplorer.refresh');
 	}
 
 	private onDidChangeSelection(e: vscode.TreeViewSelectionChangeEvent<Entry>) {
 		if (e.selection.length == 0) {
-			this.selected = this.getEntry();
+			this.selected = config.getEntry();
 		}
 		else {
 			let uri = e.selection[0].uri;
@@ -439,18 +419,18 @@ export class FileExplorer {
 	private async newDir() {
 		let dirname = this.selected;
 		// // prompt user for new note name
-		await vscode.window.showInputBox({ prompt: 'New name?' }).then(name => {
+		await vscode.window.showInputBox({ prompt: 'New Dir in ' + this.selected }).then(name => {
 			if (!name) { return; }
 			let p = path.join(dirname, name);
 			this.treeDataProvider.createDirectory(vscode.Uri.file(p));
-			this.treeDataProvider.refresh();
+			vscode.commands.executeCommand('fileExplorer.refresh');
 		});
 	}
 
 	private async renameFile(resource: Entry) {
 		// prompt user for new note name
 		vscode.window.showInputBox({
-			prompt: 'New name?',
+			prompt: 'New File in ' + this.selected,
 		}).then(newName => {
 			if (!newName) {
 				return;
@@ -458,7 +438,7 @@ export class FileExplorer {
 
 			console.log(`resource = `, resource)
 
-			let newPath = path.join(this.getEntry(), newName);
+			let newPath = path.join(config.getEntry(), newName);
 
 			this.treeDataProvider.rename(
 				resource.uri,
@@ -466,23 +446,29 @@ export class FileExplorer {
 				{ overwrite: false }
 			);
 
-			this.treeDataProvider.refresh();
+			vscode.commands.executeCommand('fileExplorer.refresh');
 		});
 	}
 
 
 	private async deleteFile(resource: Entry, selections: Entry[]) {
+		if (!selections || selections.length == 0) {
+			selections = [resource];
+		}
 		console.log(selections);
-		// prompt user for new note name
-		vscode.window.showInputBox({
-			prompt: `REMOVE: ${selections.map(x => path.basename(x.uri.fsPath)).join(', ')}   CONFIRM? [y/N]`,
-		}).then(confirm => {
-			if (confirm != 'y' && confirm != 'Y') {
-				return;
-			}
-			for (let sele of selections) {
-				this.treeDataProvider.delete(sele.uri, { recursive: true });
-				this.treeDataProvider.refresh();
+
+		let msg = `删除:\n`;
+		for (let sele of selections) {
+			let p = sele.uri.fsPath;
+			msg += `${p}\n`;
+		}
+
+		vscode.window.showInformationMessage(msg, '确认', '取消').then(v => {
+			if (v == '确认') {
+				for (let sele of selections) {
+					this.treeDataProvider.delete(sele.uri, { recursive: true });
+				}
+				vscode.commands.executeCommand('fileExplorer.refresh');
 			}
 		});
 	}
@@ -490,37 +476,31 @@ export class FileExplorer {
 	private async newFile() {
 		let dirname = this.selected;
 		// // prompt user for new note name
-		await vscode.window.showInputBox({ prompt: 'New name?' }).then(name => {
+		await vscode.window.showInputBox({ prompt: 'New File in: ' + this.selected }).then(async (name) => {
 			if (!name) { return; }
-			let p = path.join(dirname, name);
-			this.treeDataProvider.writeFile(vscode.Uri.file(p), new Uint8Array(), { create: true, overwrite: false })
-			this.treeDataProvider.refresh();
+			let p = vscode.Uri.file(path.join(dirname, name));
+			console.log(path.join(dirname, name));
+			this.treeDataProvider.writeFile(p, new Uint8Array(), { create: true, overwrite: false })
+			await vscode.commands.executeCommand('fileExplorer.refresh').then(v => {
+				vscode.commands.executeCommand('vscode.open', p);
+			});
 		});
-	}
-
-	private getEntry(): string {
-		return this.context.globalState.get('entry') || '';
-	}
-
-	private setEntry(p: string) {
-		this.context.globalState.update('entry', p);
 	}
 
 	private async addEntry() {
-		await vscode.window.showOpenDialog({
-			canSelectFiles: false,
-			canSelectFolders: true,
-			title: 'choose directory',
-			canSelectMany: false,
-		}).then(uris => {
-			if (uris) {
-				let path = uris[0].fsPath;
-				this.setEntry(path);  // save uri
-				console.log(`set entry ${path}`);
-			}
-		});
-		vscode.commands.executeCommand("fileExplorer.refresh");
+		await vscode.commands.executeCommand('workbench.action.openSettings', config.settingID);
 	}
+
+
+
+
+
+
+
+
+
+
+
 }
 
 
