@@ -41,3 +41,13 @@ vsce package
 vsce publish
 ```
 
+
+## future
+
+what about 
+- when activated, download notes from git to somewhere like `..`, then add `../notes` to workspace.
+- when deactivated, commit and push, then remove local notes.
+
+
+
+
